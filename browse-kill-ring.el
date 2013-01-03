@@ -48,6 +48,29 @@
 
 ;;; Change Log:
 
+;; Changes from 1.4 to 1.5:
+
+;; * 2013-Jan-02: Ethan Glasser-Camp
+;;   Fix a bug with default faces used to highlight items.
+;;   The symbols browse-kill-ring-current-entry-face and
+;;   browse-kill-ring-inserted-item-face are now treated like
+;;   variables specifying a face instead of faces themselves. If you
+;;   defined faces with these names, you will need to set the symbols
+;;   (as variables) to the names of the faces you defined.
+;;
+;;   (setq browse-kill-ring-current-entry-face 'browse-kill-ring-current-entry-face)
+;;
+;;   Fix another bug with highlighting inserted items. (Previously, it
+;;   highlighted arbitrary and incorrect parts of the buffer.)
+;;
+;;   Add custom variable browse-kill-ring-replace-yank. When t, this
+;;   makes browse-kill-ring after a yank replace the yanked text, like
+;;   yank-pop.
+;;
+;;   Refactor browse-kill-ring-do-prepend-insert,
+;;   browse-kill-ring-do-append-insert, and browse-kill-ring-do-insert
+;;   to all call the same function to do the actual inserting.
+
 ;; Changes from 1.3c to 1.4:
 
 ;; * 16-Aug-2012: Toon Claes
@@ -395,6 +418,21 @@ inserted with properties."
   :type 'hook
   :group 'browse-kill-ring)
 
+(defcustom browse-kill-ring-replace-yank t
+  "If non-nil, browse-kill-ring will replace just-yanked items
+when it inserts its own. That is, if you call `yank', and then
+`browse-kill-ring', and then insert something via
+`browse-kill-ring', the yanked text that you originally inserted
+will be deleted. This makes browse-kill-ring behave more like
+`yank-pop'.
+
+This doesn't change the behavior of `yank-pop' or
+`browse-kill-ring-default-keybindings'. Instead, for this to take
+effect, you will have to bind a key to `browse-kill-ring'
+directly."
+  :type 'boolean
+  :group 'browse-kill-ring)
+
 (defvar browse-kill-ring-original-window-config nil
   "The window configuration to restore for `browse-kill-ring-quit'.")
 (make-variable-buffer-local 'browse-kill-ring-original-window-config)
@@ -408,6 +446,9 @@ call `browse-kill-ring' again.")
   "The buffer in which chosen kill ring data will be inserted.
 It is probably not a good idea to set this variable directly; simply
 call `browse-kill-ring' again.")
+
+(defvar browse-kill-ring-this-buffer-replace-yanked-text nil
+  "Whether or not to replace yanked text before an insert.")
 
 (defun browse-kill-ring-mouse-insert (e)
   "Insert the chosen text, and close the *Kill Ring* buffer afterwards."
@@ -530,28 +571,24 @@ of the *Kill Ring*."
   (interactive)
   (browse-kill-ring-prepend-insert-and-move t))
 
+(defun browse-kill-ring-insert-and-highlight (str)
+  "Helper function to insert text at point, highlighting it if appropriate."
+  (let ((before-insert (point)))
+    (let (deactivate-mark)
+      (insert-for-yank str))
+
+    (when browse-kill-ring-highlight-inserted-item
+      (let ((o (make-overlay before-insert (point))))
+        (overlay-put o 'face browse-kill-ring-inserted-item-face)
+        (sit-for 0.5)
+        (delete-overlay o)))))
+
 (defun browse-kill-ring-do-prepend-insert (buf pt)
   (let ((str (browse-kill-ring-current-string buf pt)))
-    (let ((orig (current-buffer)))
-      (unwind-protect
-          (progn
-            (unless (window-live-p browse-kill-ring-original-window)
-              (error "Window %s has been deleted; Try calling `browse-kill-ring' again"
-                     browse-kill-ring-original-window))
-            (set-buffer (window-buffer browse-kill-ring-original-window))
-            (save-excursion
-              (let ((pt (point)))
-                (goto-char (point-min))
-                (insert (if browse-kill-ring-depropertize
-                            (browse-kill-ring-depropertize-string str)
-                          str))
-                (when browse-kill-ring-highlight-inserted-item
-                  (let ((o (make-overlay (point-min) (point))))
-                    (overlay-put o 'face 'browse-kill-ring-inserted-item-face)
-                    (sit-for 0.5)
-                    (delete-overlay o)))
-                (goto-char pt))))
-        (set-buffer orig)))))
+    (with-current-buffer browse-kill-ring-original-buffer
+      (save-excursion
+        (goto-char (point-min))
+        (browse-kill-ring-insert-and-highlight str)))))
 
 (defun browse-kill-ring-append-insert (&optional quit)
   "Like `browse-kill-ring-insert', but places the entry at the end of the
@@ -589,27 +626,10 @@ of the *Kill Ring*."
 
 (defun browse-kill-ring-do-append-insert (buf pt)
   (let ((str (browse-kill-ring-current-string buf pt)))
-    (let ((orig (current-buffer)))
-      (unwind-protect
-          (progn
-            (unless (window-live-p browse-kill-ring-original-window)
-              (error "Window %s has been deleted; Try calling `browse-kill-ring' again"
-                     browse-kill-ring-original-window))
-            (set-buffer (window-buffer browse-kill-ring-original-window))
-            (save-excursion
-              (let ((pt (point))
-                    (begin-pt (point-max)))
-                (goto-char begin-pt)
-                (insert (if browse-kill-ring-depropertize
-                            (browse-kill-ring-depropertize-string str)
-                          str))
-                (when browse-kill-ring-highlight-inserted-item
-                  (let ((o (make-overlay begin-pt (point-max))))
-                    (overlay-put o 'face 'browse-kill-ring-inserted-item-face)
-                    (sit-for 0.5)
-                    (delete-overlay o)))
-                (goto-char pt))))
-        (set-buffer orig)))))
+    (with-current-buffer browse-kill-ring-original-buffer
+      (save-excursion
+        (goto-char (point-max))
+        (browse-kill-ring-insert-and-highlight str)))))
 
 (defun browse-kill-ring-delete ()
   "Remove the item at point from the `kill-ring'."
@@ -657,15 +677,10 @@ of the *Kill Ring*."
 (defun browse-kill-ring-do-insert (buf pt)
   (let ((str (browse-kill-ring-current-string buf pt)))
     (with-current-buffer browse-kill-ring-original-buffer
+      (when browse-kill-ring-this-buffer-replace-yanked-text
+        (delete-region (mark) (point)))
 
-      (let (deactivate-mark)
-        (insert-for-yank str))
-
-      (when browse-kill-ring-highlight-inserted-item
-        (let ((o (make-overlay pt (point))))
-          (overlay-put o 'face 'browse-kill-ring-inserted-item-face)
-          (sit-for 0.5)
-          (delete-overlay o))))))
+      (browse-kill-ring-insert-and-highlight str))))
 
 (defun browse-kill-ring-forward (&optional arg)
   "Move forward by ARG `kill-ring' entries."
@@ -703,7 +718,7 @@ of the *Kill Ring*."
       (mapcar #'(lambda (o)
                   (overlay-put o 'face nil))
               (nconc (car overs) (cdr overs)))
-      (overlay-put current-overlay 'face 'browse-kill-ring-current-entry-face)))
+      (overlay-put current-overlay 'face browse-kill-ring-current-entry-face)))
   (when browse-kill-ring-recenter
     (recenter 1)))
 
@@ -993,6 +1008,10 @@ directly; use `browse-kill-ring' instead.
   (with-current-buffer kill-buf
     (unwind-protect
         (progn
+          (setq browse-kill-ring-this-buffer-replace-yanked-text
+                (and
+                 browse-kill-ring-replace-yank
+                 (eq last-command 'yank)))
           (browse-kill-ring-mode)
           (setq buffer-read-only nil)
           (when (eq browse-kill-ring-display-style
