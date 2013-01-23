@@ -896,6 +896,7 @@ directly; use `browse-kill-ring' instead.
   ;; The user might have rearranged the windows
   (when (eq major-mode 'browse-kill-ring-mode)
     (browse-kill-ring-setup (current-buffer)
+                            browse-kill-ring-original-buffer
                             browse-kill-ring-original-window
                             nil
                             browse-kill-ring-original-window-config)
