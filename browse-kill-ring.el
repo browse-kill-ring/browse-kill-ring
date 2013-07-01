@@ -593,7 +593,12 @@ of the *Kill Ring*."
   "Helper function to insert text at point, highlighting it if appropriate."
   (let ((before-insert (point)))
     (let (deactivate-mark)
-      (insert-for-yank str))
+      (insert-for-yank str)
+      (mapc
+       (lambda (w)
+         (when (eq (current-buffer) (window-buffer w))
+           (set-window-point w (point))))
+       (window-list))))
 
     (when browse-kill-ring-highlight-inserted-item
       (let ((o (make-overlay before-insert (point))))
