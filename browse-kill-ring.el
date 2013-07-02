@@ -598,13 +598,13 @@ of the *Kill Ring*."
        (lambda (w)
          (when (eq (current-buffer) (window-buffer w))
            (set-window-point w (point))))
-       (window-list))))
+       (window-list)))
 
     (when browse-kill-ring-highlight-inserted-item
       (let ((o (make-overlay before-insert (point))))
         (overlay-put o 'face browse-kill-ring-inserted-item-face)
         (sit-for 0.5)
-        (delete-overlay o)))))
+        (delete-overlay o))))))
 
 (defun browse-kill-ring-do-prepend-insert (buf pt)
   (let ((str (browse-kill-ring-current-string buf pt)))
