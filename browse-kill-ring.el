@@ -671,31 +671,33 @@ of the *Kill Ring*."
 (defun browse-kill-ring-delete ()
   "Remove the item at point from the `kill-ring'."
   (interactive)
-  (let ((over (car (overlays-at (point)))))
-    (unless (overlayp over)
-      (error "No kill ring item here"))
-    (unwind-protect
-        (progn
-          (setq buffer-read-only nil)
-          (let ((target (overlay-get over 'browse-kill-ring-target)))
-            (delete-region (overlay-start over)
-                           (1+ (overlay-end over)))
-            (setq kill-ring (delete target kill-ring)))
-          (when (get-text-property (point) 'browse-kill-ring-extra)
-            (let ((prev (previous-single-property-change (point)
-                                                         'browse-kill-ring-extra))
-                  (next (next-single-property-change (point)
-                                                     'browse-kill-ring-extra)))
-              ;; This is some voodoo.
-              (when prev
-                (incf prev))
-              (when next
-                (incf next))
-              (delete-region (or prev (point-min))
-                             (or next (point-max))))))
-      (setq buffer-read-only t)))
+  (forward-line 0)
+  (unwind-protect
+    (let* ((over (browse-kill-ring-target-overlay-at (point)))
+           (target (overlay-get over 'browse-kill-ring-target)))
+      (setq buffer-read-only nil)
+      (delete-region (overlay-start over) (1+ (overlay-end over)))
+      (setq kill-ring (delete target kill-ring))
+      (when (get-text-property (point) 'browse-kill-ring-extra)
+        (let ((prev (previous-single-property-change (point) 'browse-kill-ring-extra))
+              (next (next-single-property-change (point) 'browse-kill-ring-extra)))
+          (when prev (incf prev))
+          (when next (incf next))
+          (delete-region (or prev (point-min)) (or next (point-max))))))
+    (setq buffer-read-only t))
   (browse-kill-ring-resize-window)
   (browse-kill-ring-forward 0))
+
+;; code from browse-kill-ring+.el
+(defun browse-kill-ring-target-overlay-at (position)
+  "Return overlay at POSITION that has property `browse-kill-ring-target'.
+If no such overlay, raise an error."
+  (let ((ovs  (overlays-at (point))))
+    (catch 'browse-kill-ring-target-overlay-at
+      (dolist (ov  ovs)
+        (when (overlay-get ov 'browse-kill-ring-target)
+          (throw 'browse-kill-ring-target-overlay-at ov)))
+      (error "No selection-ring item here"))))
 
 ;; Helper function for browse-kill-ring-current-string, takes a list of
 ;; overlays and returns the string from the first overlay that has the
@@ -1065,20 +1067,21 @@ directly; use `browse-kill-ring' instead.
         (and
          browse-kill-ring-replace-yank
          (eq last-command 'yank)))
-  (let* ((will-replace
-         (or browse-kill-ring-this-buffer-replace-yanked-text
-             (region-active-p)))
-         (start (if will-replace
-                    (min (point) (mark))
-                  (point)))
-         (end (if will-replace
-                  (max (point) (mark))
-                (point))))
-    (when browse-kill-ring-show-preview
-      (when browse-kill-ring-preview-overlay
-        (delete-overlay browse-kill-ring-preview-overlay))
-      (setq browse-kill-ring-preview-overlay
-            (make-overlay start end orig-buf))))
+  (with-current-buffer orig-buf
+    (let* ((will-replace
+           (or browse-kill-ring-this-buffer-replace-yanked-text
+               (region-active-p)))
+           (start (if will-replace
+                      (min (point) (mark))
+                    (point)))
+           (end (if will-replace
+                    (max (point) (mark))
+                  (point))))
+      (when browse-kill-ring-show-preview
+        (when browse-kill-ring-preview-overlay
+          (delete-overlay browse-kill-ring-preview-overlay))
+        (setq browse-kill-ring-preview-overlay
+              (make-overlay start end orig-buf)))))
   (overlay-put browse-kill-ring-preview-overlay
                'invisible t)
   (with-current-buffer kill-buf
