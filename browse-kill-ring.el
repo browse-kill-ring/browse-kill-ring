@@ -5,7 +5,7 @@
 ;; Author: Colin Walters <walters@verbum.org>
 ;; Maintainer: browse-kill-ring <browse-kill-ring@tonotdo.com>
 ;; Created: 7 Apr 2001
-;; Version: 1.4
+;; Version: 1.5a
 ;; URL: https://github.com/browse-kill-ring/browse-kill-ring
 ;; Keywords: convenience
 
@@ -47,6 +47,21 @@
 ;; again.
 
 ;;; Change Log:
+
+;; Changes from 1.5 to 1.5a:
+
+;; * 2013-Oct-29: skyer9 <skyer9 at gmail dot com>
+;;   Works with `delete-selection-mode'.
+;;
+;;   Modify `save-and-restore' option when exit.
+;;   If Emacs version is 24+, browse-kill-ring works with `query-replace' properly.
+;;
+;;   Swap RET (for `browse-kill-ring-insert-move-and-quit') and u key bindings.
+;;   When kill is selected from browse-kill-ring (by typing RET),
+;;   selected kill is changed to last kill of kill-ring,
+;;   and can yank selected kill directy.
+;;
+;;   Some bug fix.
 
 ;; Changes from 1.4 to 1.5:
 
@@ -864,11 +879,11 @@ You most likely do not want to call `browse-kill-ring-mode' directly; use
   (define-key browse-kill-ring-mode-map (kbd "?") 'describe-mode)
   (define-key browse-kill-ring-mode-map (kbd "h") 'describe-mode)
   (define-key browse-kill-ring-mode-map (kbd "y") 'browse-kill-ring-insert)
-  (define-key browse-kill-ring-mode-map (kbd "u") 'browse-kill-ring-insert-move-and-quit)
+  (define-key browse-kill-ring-mode-map (kbd "RET") 'browse-kill-ring-insert-move-and-quit)
   (define-key browse-kill-ring-mode-map (kbd "i") 'browse-kill-ring-insert)
   (define-key browse-kill-ring-mode-map (kbd "o") 'browse-kill-ring-insert-and-move)
   (define-key browse-kill-ring-mode-map (kbd "x") 'browse-kill-ring-insert-and-delete)
-  (define-key browse-kill-ring-mode-map (kbd "RET") 'browse-kill-ring-insert-and-quit)
+  (define-key browse-kill-ring-mode-map (kbd "u") 'browse-kill-ring-insert-and-quit)
   (define-key browse-kill-ring-mode-map (kbd "b") 'browse-kill-ring-prepend-insert)
   (define-key browse-kill-ring-mode-map (kbd "a") 'browse-kill-ring-append-insert))
 
