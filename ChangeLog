@@ -1,3 +1,8 @@
+2014-08-15 Andrew Burgess <andrew.burgess@embecosm.com>
+	(browse-kill-ring-setup) Don't access
+	browse-kill-ring-preview-overlay, or use
+	browse-kill-ring-preview-update when preview is turned off.
+
 2014-08-07 Andrew Burgess <andrew.burgess@embecosm.com>
 	Handle case where kill-ring-yank-pointer is nil (empty kill ring).
 
