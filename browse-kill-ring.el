@@ -901,9 +901,9 @@ directly; use `browse-kill-ring' instead.
         (when browse-kill-ring-preview-overlay
           (delete-overlay browse-kill-ring-preview-overlay))
         (setq browse-kill-ring-preview-overlay
-              (make-overlay start end orig-buf)))))
-  (overlay-put browse-kill-ring-preview-overlay
-               'invisible t)
+              (make-overlay start end orig-buf))
+        (overlay-put browse-kill-ring-preview-overlay
+                     'invisible t))))
   (with-current-buffer kill-buf
     (unwind-protect
         (progn
@@ -949,10 +949,12 @@ directly; use `browse-kill-ring' instead.
                          (error "Invalid `browse-kill-ring-display-style': %s"
                                 browse-kill-ring-display-style))
                      items)
-            (browse-kill-ring-preview-update (point-min))
-            ;; Local post-command-hook, only happens in the *Kill
-            ;; Ring* buffer
-            (add-hook 'post-command-hook 'browse-kill-ring-preview-update nil t)
+            (when browse-kill-ring-show-preview
+              (browse-kill-ring-preview-update (point-min))
+              ;; Local post-command-hook, only happens in the *Kill
+              ;; Ring* buffer
+              (add-hook 'post-command-hook
+                        'browse-kill-ring-preview-update nil t))
 ;; Code from Michael Slass <mikesl@wrq.com>
             (message
              (let ((entry (if (= 1 (length kill-ring)) "entry" "entries")))
