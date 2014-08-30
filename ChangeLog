@@ -1,4 +1,9 @@
 2014-09-01 Andrew Burgess <andrew.burgess@embecosm.com>
+	When editing entries from the *Kill Ring* buffer, reducing the
+	entry to the empty string will cause the item to be deleted from
+	the kill-ring once the edit is complete.
+
+2014-09-01 Andrew Burgess <andrew.burgess@embecosm.com>
 	When editing entries in the `kill-ring' place a header line in the
 	edit buffer with a short key guide.  Kill the edit buffer when
 	editing is finished rather than just burying it.  Add an abort key

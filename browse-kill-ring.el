@@ -770,19 +770,29 @@ update entry and quit -- \\[browse-kill-ring-edit-abort] to abort.")))
 (defun browse-kill-ring-edit-finish ()
   "Commit the changes to the `kill-ring'."
   (interactive)
-  (if browse-kill-ring-edit-target
-      (setcar browse-kill-ring-edit-target (buffer-string))
-    (when (y-or-n-p "The item has been deleted; add to front? ")
-      (push (buffer-string) kill-ring)))
-  (kill-buffer)
-  ;; The user might have rearranged the windows
-  (when (eq major-mode 'browse-kill-ring-mode)
-    (browse-kill-ring-setup (current-buffer)
-                            browse-kill-ring-original-buffer
-                            browse-kill-ring-original-window
-                            nil
-                            browse-kill-ring-original-window-config)
-    (browse-kill-ring-resize-window)))
+  (let ((updated-text (buffer-string)))
+    (if (string= updated-text "")
+        ;; This code to delete an item from the kill-ring is the same
+        ;; code used in BROWSE-KILL-RING-DELETE, however, they are
+        ;; both flawed.  Multiple identical entries in the kill ring
+        ;; will be deleted, this is not what we want.  However, to fix
+        ;; this, I believe we will need to improve the mechanism
+        ;; mapping displayed items onto kill-ring entries.
+        (setq kill-ring
+              (delete (car browse-kill-ring-edit-target) kill-ring))
+      (if browse-kill-ring-edit-target
+          (setcar browse-kill-ring-edit-target updated-text)
+        (when (y-or-n-p "The item has been deleted; add to front? ")
+          (push updated-text kill-ring))))
+    (kill-buffer)
+    ;; The user might have rearranged the windows
+    (when (eq major-mode 'browse-kill-ring-mode)
+      (browse-kill-ring-setup (current-buffer)
+                              browse-kill-ring-original-buffer
+                              browse-kill-ring-original-window
+                              nil
+                              browse-kill-ring-original-window-config)
+      (browse-kill-ring-resize-window))))
 
 (defun browse-kill-ring-edit-abort ()
   "Abort the edit of the `kill-ring' item."
