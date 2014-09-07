@@ -1,7 +1,51 @@
-2014-09-01 Andrew Burgess <andrew.burgess@embecosm.com>
+2014-09-07 Andrew Burgess <andrew.burgess@embecosm.com>
 	When editing entries from the *Kill Ring* buffer, reducing the
 	entry to the empty string will cause the item to be deleted from
 	the kill-ring once the edit is complete.
+
+2014-09-07 Andrew Burgess <andrew.burgess@embecosm.com>
+	Perform the quit action early, causing the `*Kill Ring*' buffer to
+	close before inserting the item.  This gives a better user
+	experience when the inserted item is being highlighted, previously
+	the highlighting would keep the *Kill Ring* buffer around for 0.5
+	second acter the user has pressed the insert key, making it appear
+	that `broswse-kill-ring' was slow to respond.
+
+2014-09-06 Andrew Burgess <andrew.burgess@embecosm.com>
+	Register a `kill-buffer-hook' to ensure that the preview is
+	removed even if the `*Kill Ring*' bufer is killed in an unexpected
+	way, that is, by not calling `browse-kill-ring-quit' but calling
+	`kill-buffer' directly.
+
+2014-09-03 Andrew Burgess <andrew.burgess@embecosm.com>
+	Disable the preview overlay before inserting the item from the
+	`kill-ring', then reenable once the item has been inserted, moving
+	the preview as appropriate, this ensures that when inserting
+	multiple items the preview continues to be useful.
+
+2014-09-03 Andrew Burgess <andrew.burgess@embecosm.com>
+	When editing an item from the `kill-ring', if the preview is
+	turned on, then update the preview live while the edit is being
+	made.
+
+2014-09-03 Andrew Burgess <andrew.burgess@embecosm.com>
+	Split `browse-kill-ring-preview-update' into two functions so the
+	new worker code, `browse-kill-ring-preview-update-text' can be
+	reused in the next commit.  No user visible change from this.
+
+2014-09-03 Andrew Burgess <andrew.burgess@embecosm.com>
+	When deleting the last item in the *Kill Ring* buffer, also delete
+	the preceding separator.
+
+2014-09-01 Andrew Burgess <andrew.burgess@embecosm.com>
+	After editing entries from the `*Kill Ring*' reselect the item in
+	the `*Kill Ring*' buffer.
+
+2014-09-01 Andrew Burgess <andrew.burgess@embecosm.com>
+	Factor out code from `browse-kill-ring' to find a matching entry
+	in the `kill-ring' creating `browse-kill-ring-find-entry', this
+	will be used in a later commit.  Should be no user visible changes
+	from this commit.
 
 2014-09-01 Andrew Burgess <andrew.burgess@embecosm.com>
 	When editing entries in the `kill-ring' place a header line in the
