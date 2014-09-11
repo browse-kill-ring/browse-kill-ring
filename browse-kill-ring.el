@@ -686,6 +686,7 @@ You most likely do not want to call `browse-kill-ring-mode' directly; use
   (define-key browse-kill-ring-mode-map (kbd "s") 'browse-kill-ring-search-forward)
   (define-key browse-kill-ring-mode-map (kbd "r") 'browse-kill-ring-search-backward)
   (define-key browse-kill-ring-mode-map (kbd "g") 'browse-kill-ring-update)
+  (define-key browse-kill-ring-mode-map (kbd "t") 'browse-kill-ring-toggle-display-style)
   (define-key browse-kill-ring-mode-map (kbd "l") 'browse-kill-ring-occur)
   (define-key browse-kill-ring-mode-map (kbd "e") 'browse-kill-ring-edit)
   (define-key browse-kill-ring-mode-map (kbd "n") 'browse-kill-ring-forward)
@@ -1157,6 +1158,19 @@ start of the buffer."
       (browse-kill-ring-resize-window)
       (unless (eq kill-ring kill-ring-yank-pointer)
         (browse-kill-ring-find-entry kill-ring-yank-pointer-string)))))
+
+;;;###autoload
+(defun browse-kill-ring-toggle-display-style ()
+  "Toggle the value of `browse-kill-ring-display-style'."
+  (interactive)
+  (setq browse-kill-ring-display-style
+        (case browse-kill-ring-display-style
+          (separated 'one-line)
+          (otherwise 'separated)))
+  (browse-kill-ring)
+  (browse-kill-ring-update)
+  (message "Display style is now %s"
+           (upcase (symbol-name browse-kill-ring-display-style))))
 
 (provide 'browse-kill-ring)
 
