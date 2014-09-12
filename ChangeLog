@@ -1,3 +1,7 @@
+2014-09-12 Andrew Burgess <andrew.burgess@embecosm.com>
+	Calling `browse-kill-ring-edit-finish' in a buffer that is not an
+	edit buffer will now given an error.
+
 2014-09-08 Andrew Burgess <andrew.burgess@embecosm.com>
 	Fix bug in `browse-kill-ring-occur' due to change in parameters of
 	`browse-kill-ring-setup'.

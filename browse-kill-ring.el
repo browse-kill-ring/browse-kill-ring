@@ -784,11 +784,10 @@ update entry and quit -- \\[browse-kill-ring-edit-abort] to abort.")))
 (defun browse-kill-ring-edit-finish ()
   "Commit the changes to the `kill-ring'."
   (interactive)
+  (unless browse-kill-ring-edit-target
+    (error "Not a browse-kill-ring edit buffer"))
   (let ((updated-entry (buffer-string)))
-    (if browse-kill-ring-edit-target
-        (setcar browse-kill-ring-edit-target updated-entry)
-      (when (y-or-n-p "The item has been deleted; add to front? ")
-        (push updated-entry kill-ring)))
+    (setcar browse-kill-ring-edit-target updated-entry)
     (kill-buffer)
     ;; The user might have rearranged the windows
     (when (eq major-mode 'browse-kill-ring-mode)
