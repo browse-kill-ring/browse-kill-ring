@@ -247,6 +247,140 @@ call `browse-kill-ring' again.")
          (pt (cdr data)))
     (browse-kill-ring-do-insert buf pt t)))
 
+(defun browse-kill-ring-make-symbol-list (insert-action post-action)
+  ;; Helper function used when generating the insert functions.  Take
+  ;; the two action symbols and place them into a list.  The
+  ;; POST-ACTION might be nil however, in which case it does not
+  ;; appear in the list.  The INSERT-ACTION is mapped to a different
+  ;; value before being added to the list.
+  (let* ((insert-action
+          (case insert-action
+            ('append 'append-insert)
+            ('prepend 'prepend-insert)
+            (t insert-action)))
+         (sym-list (list insert-action)))
+    (when post-action
+      (setq sym-list (append sym-list (list post-action))))
+    sym-list))
+
+(defun browse-kill-ring-make-symbol-name (syms)
+  ;; Take a list of symbols and INTERN the name of a function symbol
+  ;; that we will be generating.  The symbols in SYMS are joined
+  ;; together with "-", except for the last symbol which is joined
+  ;; using "-and-".  If there's only a single symbol in SYMS then
+  ;; there's no need to the "-and-".
+  (let* ((init-str "browse-kill-ring-")
+         (mid-str "")
+         (str
+          (if (= (length syms) 1)
+              (concat init-str (downcase (symbol-name (car syms))))
+            (while (> (length syms) 1)
+              (setq mid-str (concat mid-str (downcase (symbol-name (car syms))) "-"))
+              (setq syms (cdr syms)))
+            (concat init-str mid-str "and-"
+                    (downcase (symbol-name (car syms)))))))
+    (intern str)))
+
+(defun browse-kill-ring-post-action-progn (post-action)
+  ;; Return a list that is the progn to be included in the generated
+  ;; insert function.  POST-ACTION should be either `move' or
+  ;; `delete'.
+  `((browse-kill-ring-do-delete target)
+    ,(when (equal post-action 'move)
+       '(kill-new target))
+    (unless quit
+      (browse-kill-ring-update))))
+
+(defun browse-kill-ring-make-doc-string (insert-action post-action)
+  ;; Generate a documentation string for an macro-generated insert
+  ;; function.  A temporary buffer is used to allow the generated text
+  ;; to be wrapped, the documentation is then lifted from the buffer.
+  (let ((insert-uc-word (upcase-initials (symbol-name insert-action))))
+    (with-temp-buffer
+      (insert
+       (format "%s%s the current item.\n"
+               insert-uc-word
+               (if post-action
+                   (format " then %s" (symbol-name post-action)) ""))
+       "\n"
+       "The current item is inserted"
+       (case insert-action
+         ('insert "")
+         ('append " at the end of the buffer")
+         ('prepend " at the beginning of the buffer")
+         (t (error "Unknown insert-action: %s" insert-action)))
+       (case post-action
+         ('move ", then moved to the beginning of the `kill-ring'")
+         ('delete ", then deleted from the `kill-ring'")
+         (t ""))
+       ".  If QUIT is non-nill then the *Kill Ring* buffer will be "
+       "closed or burried, based on the value of "
+       "`browse-kill-ring-quit-action'.  When "
+       "`browse-kill-ring-highlight-inserted-item' is non-nil the "
+       "inserted text will be highlighted temporarily in the "
+       "original buffer.")
+      (fill-individual-paragraphs (point-min) (point-max))
+      (buffer-string)
+     )))
+
+(defmacro browse-kill-ring-create-insert-fun (insert-action &optional post-action)
+  ;; Macro to generate the various insert functions.  The
+  ;; INSERT-ACTION can be one of `insert', `append', or `prepend'.
+  ;; The optional POST-ACTION, if present, can be `move' or `delete'.
+  ;; Two functions are created, the first will take an optional QUIT
+  ;; parameter, while the second will be an `-and-quit' variant which
+  ;; calls the first with QUIT set to `t'.  Both generated functions
+  ;; will have documentation strings.
+  (let* ((insert-action (eval insert-action))
+         (post-action (eval post-action))
+         (sym-list
+          (browse-kill-ring-make-symbol-list insert-action post-action))
+         (sym-1 ;; Symbol for non-quit version of function.
+          (browse-kill-ring-make-symbol-name sym-list))
+         (sym-2 ;; Symbol for quit version of function.
+          (browse-kill-ring-make-symbol-name (append sym-list
+                                                     (list 'quit))))
+         (doc-1
+          (browse-kill-ring-make-doc-string insert-action post-action))
+         (doc-2
+          (format
+           "Like `%s' but close the *Kill Ring* buffer afterwards."
+           (symbol-name sym-1)))
+         (insert-sym ;; Function that does the insert
+          (case insert-action
+            ('insert 'browse-kill-ring-do-insert)
+            ('append 'browse-kill-ring-do-append-insert)
+            ('prepend 'browse-kill-ring-do-prepend-insert)
+            (t (error "Unknown insert-action: %s" insert-action)))))
+    `(progn
+       (defun ,sym-1 (&optional quit)
+         ,doc-1
+         (interactive "P")
+         (,(if post-action 'let* 'let)
+          ((buf (current-buffer))
+           (pt (point))
+           ,@(if post-action
+                 '((target (browse-kill-ring-current-string buf pt)))
+               '()))
+          (,insert-sym buf pt quit)
+          ,@(when post-action
+              (browse-kill-ring-post-action-progn post-action))))
+       (defun ,sym-2 ()
+         ,doc-2
+         (interactive)
+         (,sym-1 t)))))
+
+;; Generate all of the insert functions.
+(browse-kill-ring-create-insert-fun 'insert)
+(browse-kill-ring-create-insert-fun 'insert 'move)
+(browse-kill-ring-create-insert-fun 'insert 'delete)
+(browse-kill-ring-create-insert-fun 'append)
+(browse-kill-ring-create-insert-fun 'append 'move)
+(browse-kill-ring-create-insert-fun 'append 'delete)
+(browse-kill-ring-create-insert-fun 'prepend)
+(browse-kill-ring-create-insert-fun 'prepend 'move)
+(browse-kill-ring-create-insert-fun 'prepend 'delete)
+
 (if (fboundp 'fit-window-to-buffer)
     (defalias 'browse-kill-ring-fit-window 'fit-window-to-buffer)
   (defun browse-kill-ring-fit-window (window max-height min-height)
@@ -278,79 +412,6 @@ yanked text from the *Kill Ring* buffer."
   (interactive)
   (with-current-buffer (window-buffer browse-kill-ring-original-window)
     (undo)))
-
-(defun browse-kill-ring-insert (&optional quit)
-  "Insert the kill ring item at point into the last selected buffer.
-If optional argument QUIT is non-nil, close the *Kill Ring* buffer as
-well."
-  (interactive "P")
-  (browse-kill-ring-do-insert (current-buffer)
-                              (point)
-                              quit))
-
-(defun browse-kill-ring-insert-and-delete (&optional quit)
-  "Insert the kill ring item at point, and remove it from the kill ring.
-If optional argument QUIT is non-nil, close the *Kill Ring* buffer as
-well."
-  (interactive "P")
-  (browse-kill-ring-do-insert (current-buffer)
-                              (point)
-                              quit)
-  (browse-kill-ring-delete))
-
-(defun browse-kill-ring-insert-and-quit ()
-  "Like `browse-kill-ring-insert', but close the *Kill Ring* buffer afterwards."
-  (interactive)
-  (browse-kill-ring-insert t))
-
-(defun browse-kill-ring-insert-and-move (&optional quit)
-  "Like `browse-kill-ring-insert', but move the entry to the front."
-  (interactive "P")
-  (let ((buf (current-buffer))
-        (pt (point)))
-    (browse-kill-ring-do-insert buf pt quit)
-    (let ((str (browse-kill-ring-current-string buf pt)))
-      (browse-kill-ring-delete)
-      (kill-new str)))
-  (unless quit
-    (browse-kill-ring-update)))
-
-(defun browse-kill-ring-insert-move-and-quit ()
-  "Like `browse-kill-ring-insert-and-move', but close the *Kill Ring* buffer."
-  (interactive)
-  (browse-kill-ring-insert-and-move t))
-
-(defun browse-kill-ring-prepend-insert (&optional quit)
-  "Like `browse-kill-ring-insert', but it places the entry at the beginning
-of the buffer as opposed to point.  Point is left unchanged after inserting."
-  (interactive "P")
-  (browse-kill-ring-do-prepend-insert (current-buffer)
-                                      (point)
-                                      quit))
-
-(defun browse-kill-ring-prepend-insert-and-quit ()
-  "Like `browse-kill-ring-prepend-insert', but close the *Kill Ring* buffer."
-  (interactive)
-  (browse-kill-ring-prepend-insert t))
-
-(defun browse-kill-ring-prepend-insert-and-move (&optional quit)
-  "Like `browse-kill-ring-prepend-insert', but move the entry to the front
-of the *Kill Ring*."
-  (interactive "P")
-  (let ((buf (current-buffer))
-        (pt (point)))
-    (browse-kill-ring-do-prepend-insert buf pt quit)
-    (let ((str (browse-kill-ring-current-string buf pt)))
-      (browse-kill-ring-delete)
-      (kill-new str)))
-  (unless quit
-    (browse-kill-ring-update)))
-
-(defun browse-kill-ring-prepend-insert-move-and-quit ()
-  "Like `browse-kill-ring-prepend-insert-and-move', but close the
-*Kill Ring* buffer."
-  (interactive)
-  (browse-kill-ring-prepend-insert-and-move t))
 
 (defun browse-kill-ring-highlight-inserted (start end)
   (when browse-kill-ring-highlight-inserted-item
@@ -405,38 +466,6 @@ Temporarily restore `browse-kill-ring-original-window' and
        (goto-char (point-min))
        (browse-kill-ring-insert-and-highlight str)))))
 
-(defun browse-kill-ring-append-insert (&optional quit)
-  "Like `browse-kill-ring-insert', but places the entry at the end of the
-buffer as opposed to point.  Point is left unchanged after inserting."
-  (interactive "P")
-  (browse-kill-ring-do-append-insert (current-buffer)
-                                     (point)
-                                     quit))
-
-(defun browse-kill-ring-append-insert-and-quit ()
-  "Like `browse-kill-ring-append-insert', but close the *Kill Ring* buffer."
-  (interactive)
-  (browse-kill-ring-append-insert t))
-
-(defun browse-kill-ring-append-insert-and-move (&optional quit)
-  "Like `browse-kill-ring-append-insert', but move the entry to the front
-of the *Kill Ring*."
-  (interactive "P")
-  (let ((buf (current-buffer))
-        (pt (point)))
-    (browse-kill-ring-do-append-insert buf pt quit)
-    (let ((str (browse-kill-ring-current-string buf pt)))
-      (browse-kill-ring-delete)
-      (kill-new str)))
-  (unless quit
-    (browse-kill-ring-update)))
-
-(defun browse-kill-ring-append-insert-move-and-quit ()
-  "Like `browse-kill-ring-append-insert-and-move', but close the
-*Kill Ring* buffer."
-  (interactive)
-  (browse-kill-ring-append-insert-and-move t))
-
 (defun browse-kill-ring-do-append-insert (buf pt quit)
   (let ((str (browse-kill-ring-current-string buf pt)))
     (browse-kill-ring-prepare-to-insert
@@ -444,6 +473,10 @@ of the *Kill Ring*."
      (save-excursion
        (goto-char (point-max))
        (browse-kill-ring-insert-and-highlight str)))))
+
+(defun browse-kill-ring-do-delete (target)
+  "Delete TARGET from `kill-ring'."
+  (setq kill-ring (delete target kill-ring)))
 
 (defun browse-kill-ring-delete ()
   "Remove the item at point from the `kill-ring'."
@@ -454,7 +487,7 @@ of the *Kill Ring*."
            (target (overlay-get over 'browse-kill-ring-target))
            (inhibit-read-only t))
       (delete-region (overlay-start over) (1+ (overlay-end over)))
-      (setq kill-ring (delete target kill-ring))
+      (browse-kill-ring-do-delete target)
       (cond
        ;; Don't try to delete anything else in an empty buffer.
        ((and (bobp) (eobp)) t)
