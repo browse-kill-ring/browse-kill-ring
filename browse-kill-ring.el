@@ -493,7 +493,7 @@ of the *Kill Ring*."
       (cond
        ;; Don't try to delete anything else in an empty buffer.
        ((and (bobp) (eobp)) t)
-       ;; The last entry was deleted, remove the preceeding separator.
+       ;; The last entry was deleted, remove the preceding separator.
        ((eobp)
         (progn
           (browse-kill-ring-forward -1)
