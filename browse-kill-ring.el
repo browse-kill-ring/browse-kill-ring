@@ -652,7 +652,7 @@ entry."
   (cl-case browse-kill-ring-quit-action
     (save-and-restore
       (if (< emacs-major-version 24)
-        (let (buf (current-buffer))
+          (let ((buf (current-buffer)))
              (set-window-configuration browse-kill-ring-original-window-config)
            (kill-buffer buf))
        (quit-window)))
