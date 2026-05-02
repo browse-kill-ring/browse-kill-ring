@@ -508,7 +508,7 @@ of the *Kill Ring*."
   "Return overlay at POSITION that has property `browse-kill-ring-target'.
 If no such overlay, raise an error unless NO-ERROR is true, in which
 case return nil."
-  (let ((ovs  (overlays-at (point))))
+  (let ((ovs  (overlays-at position)))
     (catch 'browse-kill-ring-target-overlay-at
       (dolist (ov  ovs)
         (when (overlay-get ov 'browse-kill-ring-target)
