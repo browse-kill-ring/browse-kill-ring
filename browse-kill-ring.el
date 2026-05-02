@@ -711,27 +711,26 @@ You most likely do not want to call `browse-kill-ring-mode' directly; use
   (define-key browse-kill-ring-mode-map (kbd "b") 'browse-kill-ring-prepend-insert)
   (define-key browse-kill-ring-mode-map (kbd "a") 'browse-kill-ring-append-insert))
 
+;; Use plain "p" instead of "*p" in `yank-pop' so `browse-kill-ring'
+;; can be invoked from read-only buffers.  If we do fall through to
+;; `yank-pop', enforce read-only ourselves first.
+(defun browse-kill-ring--yank-pop-advice (orig-fun &rest args)
+  "Around advice for `yank-pop' used by `browse-kill-ring'."
+  (interactive "p")
+  (if (not (eq last-command 'yank))
+      (browse-kill-ring)
+    (barf-if-buffer-read-only)
+    (apply orig-fun args)))
+
 ;;;###autoload
 (defun browse-kill-ring-default-keybindings ()
-  "Set up M-y (`yank-pop') so that it can invoke `browse-kill-ring'.
-Normally, if M-y was not preceeded by C-y, then it has no useful
-behavior.  This function sets things up so that M-y will invoke
-`browse-kill-ring'."
+  "Make `yank-pop' invoke `browse-kill-ring' when appropriate.
+Normally, `yank-pop' is only useful after `yank'.  This installs
+advice so that invoking `yank-pop' otherwise runs `browse-kill-ring'
+instead."
   (interactive)
-  (defadvice yank-pop (around kill-ring-browse-maybe (arg))
-    "If last action was not a yank, run `browse-kill-ring' instead."
-    ;; yank-pop has an (interactive "*p") form which does not allow
-    ;; it to run in a read-only buffer.  We want browse-kill-ring to
-    ;; be allowed to run in a read only buffer, so we change the
-    ;; interactive form here.  In that case, we need to
-    ;; barf-if-buffer-read-only if we're going to call yank-pop with
-    ;; ad-do-it
-    (interactive "p")
-    (if (not (eq last-command 'yank))
-        (browse-kill-ring)
-      (barf-if-buffer-read-only)
-      ad-do-it))
-  (ad-activate 'yank-pop))
+  (unless (advice-member-p #'browse-kill-ring--yank-pop-advice 'yank-pop)
+    (advice-add 'yank-pop :around #'browse-kill-ring--yank-pop-advice)))
 
 (define-derived-mode browse-kill-ring-edit-mode fundamental-mode
   "Kill Ring Edit"
