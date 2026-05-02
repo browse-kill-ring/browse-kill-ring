@@ -377,6 +377,9 @@ of the *Kill Ring*."
   (interactive)
   (browse-kill-ring-prepend-insert-and-move t))
 
+(defvar pulse-delay)
+(defvar pulse-iterations)
+
 (defun browse-kill-ring-highlight-inserted (start end)
   (when browse-kill-ring-highlight-inserted-item
     ;; First, load the `pulse' library if needed.
@@ -517,7 +520,7 @@ case return nil."
         (error "No selection-ring item here")))))
 
 ;; Find the string to insert at the point by looking for the overlay.
-(defun browse-kill-ring-current-string (buf pt &optional no-error)
+(defun browse-kill-ring-current-string (_buf pt &optional no-error)
   (let ((o (browse-kill-ring-target-overlay-at pt t)))
     (if o
         (overlay-get o 'browse-kill-ring-target)
@@ -955,7 +958,7 @@ Callback triggered after a change in the *Kill Ring Edit* buffer,
 update the preview in the original buffer."
   (browse-kill-ring-preview-update-text (buffer-string)))
 
-(defun browse-kill-ring-current-index (buf pt)
+(defun browse-kill-ring-current-index (_buf pt)
   "Return current index."
   (let ((overlay-start-point
          (overlay-start
