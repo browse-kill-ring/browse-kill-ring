@@ -869,8 +869,7 @@ reselects ENTRY in the `*Kill Ring*' buffer."
     (browse-kill-ring-insert-as-separated-1 (car items) nil)))
 
 (defun browse-kill-ring-insert-as-separated-1 (origitem separatep)
-  (let* ((item (browse-kill-ring-elide origitem))
-         (len (length item)))
+  (let ((item (browse-kill-ring-elide origitem)))
     (browse-kill-ring-add-overlays-for origitem
                                        (insert item))
     ;; When the kill-ring has items with read-only text property at
