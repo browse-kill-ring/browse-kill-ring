@@ -1,3 +1,18 @@
+2026-05-01 Sergey Goldgaber <large.chart5044@fastmail.com>
+	Replace obsolete defadvice with advice-add for yank-pop.  The
+	minimum Emacs version is now 24.4.
+
+2026-05-01 Sergey Goldgaber <large.chart5044@fastmail.com>
+	Enable lexical-binding and silence related byte-compiler
+	warnings.
+
+2020-01-19 Gerard Vermeulen <gerard.vermeulen@neel.cnrs.fr>
+	Replace obsolete cl with cl-lib.
+
+2017-12-18 Andrew Burgess <andrew.burgess@embecosm.com>
+	Fontify keywords in the kill ring buffer, enabling
+	form-feed-mode integration.
+
 2015-10-16 Andrew Burgess <andrew.burgess@embecosm.com>
 	Make C-g quit browse-kill-ring mode.
 
